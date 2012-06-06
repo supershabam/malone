@@ -1,4 +1,4 @@
 malone
 ======
 
-Abstracted simple-minded mailman for your inter-process/server communication (backed by redis)
+Abstracted simple-minded mailman for your inter-process/server communication assisted by Stockton aka Redis
