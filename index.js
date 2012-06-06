@@ -3,6 +3,7 @@ var redis  = require('redis')
   , net    = require('net')
   , util   = require('util')
   , events = require('events')
+  , os     = require('os')
   ;
 
 function Malone(id, options) {
@@ -10,16 +11,21 @@ function Malone(id, options) {
 
   this._redisClient = redis.createClient(options.redis.port, options.redis.host, options.redis.options || {});
   this._id = id;
-  this._host = options.host || 'localhost';
+  this._host = options.host || os.hostname();
   this._port = options.port || null;
-  this._redisPrefix = 'malone:';
+  this._redisPrefix = options.redisPrefix || 'malone:';
   this._connections = {};
+  this._refreshInterval = options.refreshInterval || 60000;
+  this._expires = options.expires || 120000;
+  this._refresher = null;
 
   // magical thisness
   this._connectionHandler = this._connectionHandler.bind(this);
   this._listeningHandler = this._listeningHandler.bind(this);
   this._errorHandler = this._errorHandler.bind(this);
   this._clientDataHandler = this._clientDataHandler.bind(this);
+  this._refresh = this._refresh.bind(this);
+  this._startRefresher = this._startRefresher.bind(this);
 
   // start server
   this._server = net.createServer();
@@ -91,8 +97,22 @@ Malone.prototype._register = function() {
     if (err) console.log(err);
 
     self.ready(true);
+    if (self._expires) {
+      self._startRefresher();
+      self._refresh();
+    }
   });
 };
+
+Malone.prototype._startRefresher = function() {
+  if (this._refresher) clearInterval(this._refresher);
+  this._refresher = setInterval(this._refresh, this._refreshInterval);
+}
+
+Malone.prototype._refresh = function() {
+  console.log('refreshing');
+  this._redisClient.expire(this._redisPrefix + this._id, ~~(this._expires/1000));
+}
 
 exports.createMalone = function createMalone(id, options) {
   return new Malone(id, options);
