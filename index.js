@@ -45,9 +45,10 @@ Malone.prototype.send = function(id, message, cb) {
   // @TODO LRU cache this lookup
   this._redisClient.get(this._redisPrefix + id, function(err, addr) {
     if (err || !addr) return cb(err || 'unable to find id');
-
+    message = message || '';
     var connection = self._createOrFetchConnection(addr);
-    connection.write(message);
+    var payload = '' + message.length.toString(16) + '|' + message;
+    connection.write(payload);
     cb();
   });
 };
@@ -60,30 +61,56 @@ Malone.prototype._createOrFetchConnection = function (addr) {
   host = addr.split(':')[0];
   connection = net.connect(port, host);
   this._connections[addr] = connection;
+  connection.on('end', function() {
+
+  })  
   return connection;
 };
+
+Malone.prototype._removeConnection = function(addr) {
+  if (this._connections[addr]) {
+    this._connections[addr].close();
+    delete this._connections[addr];  
+  }
+}
 
 // handles clients connecting to us to provide datas
 Malone.prototype._connectionHandler = function(client) {
   client.setEncoding('utf8');
   client.on('data', this._clientDataHandler);
-  console.log('connection');
 };
 
 Malone.prototype._listeningHandler = function() {
   address = this._server.address();
   this._port = address.port;
   this._register();
-  
-  console.log('opened server on %j', address);
 };
 
 Malone.prototype._errorHandler = function(e) {
   console.error('error in malone', e);
 };
 
-Malone.prototype._clientDataHandler = function(message) {
-  this.emit('message', message);
+Malone.prototype._clientDataHandler = function(payload) {
+  var prefix
+    , message
+    , length
+    , pipePos
+    , runaway = 200
+    ;
+
+  while (payload.length !== 0) {
+    pipePos = payload.indexOf('|');
+    length = parseInt(payload.slice(0, pipePos), 16);
+    message = payload.substr(pipePos + 1, length);
+    payload = payload.slice(pipePos + 1 + length, Infinity);
+
+    this.emit('message', message);
+
+    if (--runaway == 0) {
+      console.error('malone parsing is not working right...');
+      break;
+    }
+  }
 };
 
 Malone.prototype._isReady = function() {
@@ -110,7 +137,6 @@ Malone.prototype._startRefresher = function() {
 }
 
 Malone.prototype._refresh = function() {
-  console.log('refreshing');
   this._redisClient.expire(this._redisPrefix + this._id, ~~(this._expires/1000));
 }
 
