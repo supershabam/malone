@@ -4,11 +4,23 @@ var redis  = require('redis')
   , util   = require('util')
   , events = require('events')
   , os     = require('os')
+  , goldfish = require('goldfish')
   ;
 
 function Malone(id, options) {
   events.EventEmitter.call(this);
 
+  // magical thisness
+  this._connectionHandler = this._connectionHandler.bind(this);
+  this._listeningHandler = this._listeningHandler.bind(this);
+  this._errorHandler = this._errorHandler.bind(this);
+  this._clientDataHandler = this._clientDataHandler.bind(this);
+  this._refresh = this._refresh.bind(this);
+  this._startRefresher = this._startRefresher.bind(this);
+  this._createOrFetchConnection = this._createOrFetchConnection.bind(this);
+  this._fetchAddrFromId = this._fetchAddrFromId.bind(this);
+
+  // mah properties
   this._redisClient = redis.createClient(options.redis.port, options.redis.host, options.redis.options || {});
   this._id = id;
   this._host = options.host || os.hostname();
@@ -18,14 +30,10 @@ function Malone(id, options) {
   this._refreshInterval = options.refreshInterval || 60000;
   this._expires = options.expires || 120000;
   this._refresher = null;
-
-  // magical thisness
-  this._connectionHandler = this._connectionHandler.bind(this);
-  this._listeningHandler = this._listeningHandler.bind(this);
-  this._errorHandler = this._errorHandler.bind(this);
-  this._clientDataHandler = this._clientDataHandler.bind(this);
-  this._refresh = this._refresh.bind(this);
-  this._startRefresher = this._startRefresher.bind(this);
+  this._addrCache = goldfish.createGoldfish({
+    populate: this._fetchAddrFromId,
+    expires: options.expires || (5 * 60 * 1000)
+  });  
 
   // start server
   this._server = net.createServer();
@@ -37,24 +45,37 @@ function Malone(id, options) {
 util.inherits(Malone, events.EventEmitter);
 ready.mixin(Malone.prototype);
 
-Malone.prototype.send = function(id, message, cb) {
+Malone.prototype._fetchAddrFromId = function(id, cb) {
+  this._redisClient.get(this._redisPrefix + id, cb);
+};
+
+Malone.prototype._send = function(id, message, numRetries, cb) {
   var self = this;
+  this._addrCache.get(id, function(err, addr) {
+    if (err || !addr) {
+      self._addrCache.evict(id);
+      if (numRetries > 0) 
+        return setTimeout(self._send.bind(self, id, message, --numRetries, cb), 100);      
+      return cb(err || 'unable to find id');
+    }
 
-  cb = cb || function() {};
-
-  // @TODO LRU cache this lookup
-  this._redisClient.get(this._redisPrefix + id, function(err, addr) {
-    if (err || !addr) return cb(err || 'unable to find id');
     message = message || '';
     var connection = self._createOrFetchConnection(addr);
     var payload = '' + message.length.toString(16) + '|' + message;
     connection.write(payload);
     cb();
   });
+}
+
+Malone.prototype.send = function(id, message, cb) {
+  cb = cb || function(){};
+  this.ready(this._send.bind(this, id, message, 2, cb));
 };
 
-Malone.prototype._createOrFetchConnection = function (addr) {
-  if (this._connections.hasOwnProperty(addr)) return this._connections[addr];
+Malone.prototype._createOrFetchConnection = function (addr, cb) {
+  if (this._connections.hasOwnProperty(addr)) {    
+    return this._connections[addr];
+  }
   
   var port
     , host
@@ -63,14 +84,13 @@ Malone.prototype._createOrFetchConnection = function (addr) {
     ;
 
   port = addr.split(':')[1];
-  host = addr.split(':')[0];
-  connection = net.connect(port, host);
-  this._connections[addr] = connection;
-  
-  connection.on('end', function() {
-    delete self._connections[addr];
+  host = addr.split(':')[0];  
+  connection = net.connect(port, host, function() {
+    self._connections[addr] = connection;
+    connection.on('end', function() {
+      delete self._connections[addr];
+    });
   });
-
   return connection;
 };
 

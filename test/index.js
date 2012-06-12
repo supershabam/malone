@@ -24,11 +24,11 @@ describe('test', function() {
     });
     m1.on('message', function(message) {
       done();
-    });
+    });    
     m1.ready(function(){
       m2.ready(function(){
         m3.ready(function(){
-          m1.send('m2', 'from m1');
+          m1.send('m2', 'from m1');   
         });
       });
     });

@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "redis": "~0.7.2",
-    "ready": "~0.1.0"
+    "ready": "~0.1.0",
+    "goldfish": "0.0.1"
   },
   "devDependencies": {},
   "optionalDependencies": {}
