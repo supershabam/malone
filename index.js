@@ -56,14 +56,21 @@ Malone.prototype.send = function(id, message, cb) {
 Malone.prototype._createOrFetchConnection = function (addr) {
   if (this._connections.hasOwnProperty(addr)) return this._connections[addr];
   
-  var port, host, connection;
+  var port
+    , host
+    , connection
+    , self = this
+    ;
+
   port = addr.split(':')[1];
   host = addr.split(':')[0];
   connection = net.connect(port, host);
   this._connections[addr] = connection;
+  
   connection.on('end', function() {
+    delete self._connections[addr];
+  });
 
-  })  
   return connection;
 };
 
@@ -81,7 +88,7 @@ Malone.prototype._connectionHandler = function(client) {
 };
 
 Malone.prototype._listeningHandler = function() {
-  address = this._server.address();
+  var address = this._server.address();
   this._port = address.port;
   this._register();
 };
@@ -112,10 +119,6 @@ Malone.prototype._clientDataHandler = function(payload) {
     }
   }
 };
-
-Malone.prototype._isReady = function() {
-  return this._isRedisReady && this._isListening;
-}
 
 Malone.prototype._register = function() {
   var self = this;
