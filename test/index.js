@@ -28,7 +28,7 @@ describe('test', function() {
     m1.ready(function(){
       m2.ready(function(){
         m3.ready(function(){
-          m1.send('m2', 'from m1');   
+          m1.send('m2', '{"type":"Register","entityId":"device|8746288"}');   
         });
       });
     });
