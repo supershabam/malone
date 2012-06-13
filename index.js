@@ -40,7 +40,7 @@ function Malone(id, options) {
   this._server.on('connection', this._connectionHandler);
   this._server.on('listening', this._listeningHandler);  
   this._server.on('error', this._errorHandler);
-  this._server.listen(this._port, this._host);
+  this._server.listen(this._port || Math.floor(Math.random() * 20000) + 20000, this._host);
 }
 util.inherits(Malone, events.EventEmitter);
 ready.mixin(Malone.prototype);
@@ -60,10 +60,18 @@ Malone.prototype._send = function(id, message, numRetries, cb) {
     }
 
     message = message || '';
-    var connection = self._createOrFetchConnection(addr);
-    var payload = '' + message.length.toString(16) + '|' + message;
-    connection.write(payload);
-    cb();
+    self._createOrFetchConnection(addr, function(err, connection) {
+      if (err) {
+        self._addrCache.evict(id);
+        if (numRetries > 0)
+          return setTimeout(self._send.bind(self, id, message, --numRetries, cb), 100);
+        return cb(err);
+      }
+
+      var payload = '' + message.length + '|' + message;
+      connection.write(payload);
+      return cb();
+    });
   });
 }
 
@@ -73,25 +81,43 @@ Malone.prototype.send = function(id, message, cb) {
 };
 
 Malone.prototype._createOrFetchConnection = function (addr, cb) {
-  if (this._connections.hasOwnProperty(addr)) {    
-    return this._connections[addr];
-  }
-  
   var port
     , host
     , connection
+    , failTimeout
+    , failed = false
+    , fail
     , self = this
     ;
 
+  if (this._connections.hasOwnProperty(addr)) {
+    return cb(null, this._connections[addr]);
+  }
+
+  fail = function() {
+    if (!failed) {
+      failed = true;
+      delete self._connections[addr];
+      return cb('unable to establish connection');
+    }
+  };
+
   port = addr.split(':')[1];
   host = addr.split(':')[0];  
+
+  failTimeout = setTimeout(fail, 500);
+
   connection = net.connect(port, host, function() {
     self._connections[addr] = connection;
     connection.on('end', function() {
       delete self._connections[addr];
     });
+
+    if (failed) return;
+    clearTimeout(failTimeout);
+    return cb(null, connection);
   });
-  return connection;
+  connection.on('error', fail);
 };
 
 Malone.prototype._removeConnection = function(addr) {
@@ -127,7 +153,7 @@ Malone.prototype._clientDataHandler = function(payload) {
 
   while (payload.length !== 0) {
     pipePos = payload.indexOf('|');
-    length = parseInt(payload.slice(0, pipePos), 16);
+    length = parseInt(payload.slice(0, pipePos), 10);
     message = payload.substr(pipePos + 1, length);
     payload = payload.slice(pipePos + 1 + length, Infinity);
 
