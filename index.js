@@ -5,6 +5,7 @@ var redis  = require('redis')
   , events = require('events')
   , os     = require('os')
   , goldfish = require('goldfish')
+  , cluster = require('cluster')
   ;
 
 function Malone(id, options) {
@@ -40,7 +41,15 @@ function Malone(id, options) {
   this._server.on('connection', this._connectionHandler);
   this._server.on('listening', this._listeningHandler);  
   this._server.on('error', this._errorHandler);
+
+  /**
+   * SUPER-MEGA-STUPID Hack for bypassing Ben Noordhuis's bad decision   
+   * https://github.com/joyent/node/issues/3324
+   */
+  var _isWorker = cluster.isWorker;
+  cluster.isWorker = false;
   this._server.listen(this._port || Math.floor(Math.random() * 20000) + 20000, this._host);
+  cluster.isWorker = _isWorker;
 }
 util.inherits(Malone, events.EventEmitter);
 ready.mixin(Malone.prototype);
@@ -51,7 +60,8 @@ Malone.prototype._fetchAddrFromId = function(id, cb) {
 
 Malone.prototype._send = function(id, message, numRetries, cb) {
   var self = this;
-  this._addrCache.get(id, function(err, addr) {
+  this._addrCache.get(id, function(err, addr, test) {
+    // console.log('cache returns', addr, test);
     if (err || !addr) {
       self._addrCache.evict(id);
       if (numRetries > 0) 
@@ -76,8 +86,11 @@ Malone.prototype._send = function(id, message, numRetries, cb) {
 }
 
 Malone.prototype.send = function(id, message, cb) {
+  var self = this;
   cb = cb || function(){};
-  this.ready(this._send.bind(this, id, message, 2, cb));
+  this.ready(function() {
+    self._send(id, message, 2, cb);
+  });
 };
 
 Malone.prototype._createOrFetchConnection = function (addr, cb) {
@@ -144,25 +157,20 @@ Malone.prototype._errorHandler = function(e) {
 };
 
 Malone.prototype._clientDataHandler = function(payload) {
-  var prefix
-    , message
+  var start
+    , pipe
     , length
-    , pipePos
-    , runaway = 200
+    , message
     ;
 
-  while (payload.length !== 0) {
-    pipePos = payload.indexOf('|');
-    length = parseInt(payload.slice(0, pipePos), 10);
-    message = payload.substr(pipePos + 1, length);
-    payload = payload.slice(pipePos + 1 + length, Infinity);
-
+  start = 0;
+  while((pipe = payload.indexOf('|', start)) !== -1) { 
+    length = parseInt(payload.slice(start, pipe), 10);
+    if(isNaN(length)) break;
+     
+    message = payload.slice(pipe + 1, pipe + 1 + length);
     this.emit('message', message);
-
-    if (--runaway == 0) {
-      console.error('malone parsing is not working right...');
-      break;
-    }
+    start = start + length;
   }
 };
 

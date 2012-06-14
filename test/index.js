@@ -11,7 +11,7 @@ options = {
   }
 };
 
-describe('test', function() {
+describe('multiple mailmen', function() {
   it('creates a bunch of mailmen at once', function(done) {
     var m1 = malone.createMalone('m1', options);
     var m2 = malone.createMalone('m2', options);
@@ -31,6 +31,25 @@ describe('test', function() {
           m1.send('m2', '{"type":"Register","entityId":"device|8746288"}');   
         });
       });
+    });
+  });
+});
+
+describe('parsing', function() {
+  it('sends 500 single character messages', function(done) {
+    var m = malone.createMalone('500', options)
+      , i
+      , count = 0
+      ;
+
+    m.ready(function() {
+      for (i = 0; i < 500; ++i) {
+        m.send('500', 'a');
+      }
+    });
+    m.on('message', function(message) {
+      if (message === 'a') ++count;
+      if (count === 500) done();
     });
   });
 });
