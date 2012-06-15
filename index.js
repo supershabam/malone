@@ -166,6 +166,7 @@ Malone.prototype._clientDataHandler = function(payload) {
   while((pipe = payload.indexOf('|', start)) !== -1) { 
     length = parseInt(payload.slice(start, pipe), 10);
     if(isNaN(length)) break;
+    if(length === 0) break;
      
     message = payload.slice(pipe + 1, pipe + 1 + length);
     this.emit('message', message);
