@@ -60,8 +60,7 @@ Malone.prototype._fetchAddrFromId = function(id, cb) {
 
 Malone.prototype._send = function(id, message, numRetries, cb) {
   var self = this;
-  this._addrCache.get(id, function(err, addr, test) {
-    // console.log('cache returns', addr, test);
+  this._addrCache.get(id, function(err, addr) {
     if (err || !addr) {
       self._addrCache.evict(id);
       if (numRetries > 0) 
