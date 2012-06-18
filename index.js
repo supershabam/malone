@@ -25,7 +25,7 @@ function Malone(id, options) {
   this._redisClient = redis.createClient(options.redis.port, options.redis.host, options.redis.options || {});
   this._id = id;
   this._host = options.host || os.hostname();
-  this._port = options.port || null;
+  this._port = options.port || 0;
   this._redisPrefix = options.redisPrefix || 'malone:';
   this._connections = {};
   this._refreshInterval = options.refreshInterval || 60000;
@@ -43,13 +43,14 @@ function Malone(id, options) {
   this._server.on('error', this._errorHandler);
 
   /**
-   * SUPER-MEGA-STUPID Hack for bypassing Ben Noordhuis's bad decision   
+   * SUPER-MEGA-STUPID Hack for bypassing bad decision for port 0 handling
    * https://github.com/joyent/node/issues/3324
    */
-  var _isWorker = cluster.isWorker;
-  cluster.isWorker = false;
-  this._server.listen(this._port || Math.floor(Math.random() * 20000) + 20000, this._host);
-  cluster.isWorker = _isWorker;
+  if (cluster.isWorker && this._port === 0) {
+    // may the port allocation Gods smile upon you
+    this._port = Math.floor(Math.random() * 40000) + 20000;
+  }
+  this._server.listen(this._port, this._host);
 }
 util.inherits(Malone, events.EventEmitter);
 ready.mixin(Malone.prototype);
