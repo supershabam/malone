@@ -77,7 +77,7 @@ Malone.prototype._send = function(id, message, numRetries, cb) {
         return cb(err);
       }
 
-      var payload = '' + message.length + '|' + message;
+      var payload = JSON.stringify({message: message}) + '\n';
       connection.write(payload);
       return cb();
     });
@@ -141,8 +141,20 @@ Malone.prototype._removeConnection = function(addr) {
 
 // handles clients connecting to us to provide datas
 Malone.prototype._connectionHandler = function(client) {
+  var buffer = ""
+    , self = this
+    ;
+
   client.setEncoding('utf8');
-  client.on('data', this._clientDataHandler);
+  client.on('data', function(message) {
+    var newlinePos;
+
+    buffer = buffer + message;
+    while ((newlinePos = buffer.indexOf('\n')) !== -1) {
+      self._clientDataHandler(buffer.slice(0, newlinePos));
+      buffer = buffer.slice(newlinePos + 1);
+    }
+  });
 };
 
 Malone.prototype._listeningHandler = function() {
@@ -156,21 +168,12 @@ Malone.prototype._errorHandler = function(e) {
 };
 
 Malone.prototype._clientDataHandler = function(payload) {
-  var start
-    , pipe
-    , length
-    , message
-    ;
-
-  start = 0;
-  while((pipe = payload.indexOf('|', start)) !== -1) { 
-    length = parseInt(payload.slice(start, pipe), 10);
-    if(isNaN(length)) break;
-    if(length === 0) break;
-     
-    message = payload.slice(pipe + 1, pipe + 1 + length);
-    this.emit('message', message);
-    start = start + length;
+  try {
+    payload = JSON.parse(payload);
+    if(payload.message) 
+      this.emit('message', payload.message);
+  } catch (err) {
+    console.log(err);
   }
 };
 

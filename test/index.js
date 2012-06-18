@@ -1,6 +1,7 @@
 "use strict";
 
 var malone = require('../')
+  , fs = require('fs')
   , options
   ;
 
@@ -50,6 +51,20 @@ describe('parsing', function() {
     m.on('message', function(message) {
       if (message === 'a') ++count;
       if (count === 500) done();
+    });
+  });
+
+  it('parses a very long file', function(done) {
+    var m = malone.createMalone('large', options)
+      , message = fs.readFileSync(__dirname + '/largemessage.txt')
+      ;
+
+    m.ready(function() {
+      m.send('large', message);
+    });
+    m.on('message', function(msg) {
+      if (message.length === msg.length) return done();
+      return done('wrong message length');
     });
   });
 });
