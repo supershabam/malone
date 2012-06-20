@@ -36,12 +36,12 @@ var redis  = require('redis')
  *   'error' - emitted when an error occurs with malone!
  *   'listening' - emitted when the server starts listening, if you care. passes the server instance so that you can grab the address.
  */
-function Malone(id, options) {
+function Malone(options) {
   events.EventEmitter.call(this);
 
   options = options || {};
   options.redis = options.redis || {};
-  this._id = id || options.id || uuid.v4();
+  this._id = options.id || uuid.v4();
   this._host = options.host || os.hostname();
   this._port = options.port || 0;
   this._redis = redis.createClient(options.redis.port || 6379, options.redis.host || 'localhost');
@@ -85,6 +85,10 @@ Malone.prototype.send = function(id, message, cb) {
       cb();
     });
   });
+};
+
+Malone.prototype.getId = function() {
+  return this._id;
 };
 
 // @TODO try to connect to a local socket if the host is yourself
