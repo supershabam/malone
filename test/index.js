@@ -1,6 +1,6 @@
 "use strict";
 
-var malone = require('../')
+var Malone = require('../')
   , fs = require('fs')
   , options
   ;
@@ -14,9 +14,9 @@ options = {
 
 describe('multiple mailmen', function() {
   it('creates a bunch of mailmen at once', function(done) {
-    var m1 = malone.createMalone('m1', options);
-    var m2 = malone.createMalone('m2', options);
-    var m3 = malone.createMalone('m3', options);
+    var m1 = new Malone('m1', options);
+    var m2 = new Malone('m2', options);
+    var m3 = new Malone('m3', options);
     m2.on('message', function(message) {
       m2.send('m3', message);
     });
@@ -38,7 +38,7 @@ describe('multiple mailmen', function() {
 
 describe('parsing', function() {
   it('sends 500 single character messages', function(done) {
-    var m = malone.createMalone('500', options)
+    var m = new Malone('500', options)
       , i
       , count = 0
       ;
@@ -55,7 +55,7 @@ describe('parsing', function() {
   });
 
   it('parses a very long file', function(done) {
-    var m = malone.createMalone('large', options)
+    var m = new Malone('large', options)
       , message = fs.readFileSync(__dirname + '/largemessage.txt')
       ;
 
