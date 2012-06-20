@@ -93,12 +93,14 @@ Malone.prototype.getId = function() {
 
 // @TODO try to connect to a local socket if the host is yourself
 Malone.prototype._populateConnectionCache = function(addr, cb) {
-  var connection
+  var host = addr.split(':')[0]
+    , port = addr.split(':')[1]
+    , connection
     , hasReturned = false
     , self = this
     ;
 
-  connection = net.connect(addr.port, addr.host, function handleConnected() {
+  connection = net.connect(port, host, function handleConnected() {
     hasReturned = true;
     cb(null, connection);
   });
@@ -125,17 +127,8 @@ Malone.prototype._populateConnectionCache = function(addr, cb) {
 Malone.prototype._populateAddrCache = function(id, cb) {
   this._redis.get(this._prefix + id, function handleRedisGet(err, result) {
     if (err || !result) return cb(err || new Error('no address registered with id=' + id));
-
-    var addr;
-    try {
-      addr = {
-        host: result.split(':')[0],
-        port: result.split(':')[1]
-      };
-      return cb(null, addr);
-    } catch(err) {
-      return cb(err);
-    }
+    if (!result.indexOf(':') === -1 || result.split(':')[0].length === 0 || result.split(':')[1].length === 0) return cb(new Error('invalid address result stored in redis ' + result));
+    return cb(null, result);
   });
 };
 
