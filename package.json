@@ -2,7 +2,7 @@
   "author": "Ian Hansen <ian@supershabam.com>",
   "name": "malone",
   "description": "Abstracted simple-minded mailman for your inter-process/server communication (backed by redis)",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "repository": {
     "type": "git",
     "url": "git://github.com/SuperShabam/malone.git"
