@@ -1,27 +1,24 @@
 {
-  "author": "Ian Hansen <ian@supershabam.com>",
+  "author": "Ian Hansen",
   "name": "malone",
   "description": "Abstracted simple-minded mailman for your inter-process/server communication (backed by redis)",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "repository": {
     "type": "git",
-    "url": "git://github.com/SuperShabam/malone.git"
-  },
-  "engines": {
-    "node": "~0.6.10"
+    "url": "git://github.com/supershabam/malone.git"
   },
   "dependencies": {
-    "node-uuid": "~1.3.3",
-    "goldfish": "0.0.6",
+    "goldfish": "0.0.8",
     "lazy": "~1.0.8",
     "ready": "~0.1.0",
+    "node-uuid": "~1.3.3",
     "redis": "~0.7.2"
   },
   "devDependencies": {
-    "mocha": "~1.1.0"
+    "mocha": "~1.4.0"
   },
-  "optionalDependencies": {},
+  "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha"
+    "test": "./node_modules/.bin/mocha --timeout 5000"
   }
 }
