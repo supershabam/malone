@@ -1,6 +1,5 @@
 var redis  = require('redis')
-  , net    = require('net')
-  , netCluster = require('net-cluster')
+  , net    = require('net-cluster')
   , util   = require('util')
   , events = require('events')
   , os     = require('os')
@@ -58,7 +57,7 @@ function Malone(options) {
   });
   this._redis.on('error', this.emit.bind(this, 'error'));
 
-  this._server = netCluster.createServer();
+  this._server = net.createServer();
   this._server.on('connection', this._handleClient.bind(this));
   this._server.on('error', this.emit.bind(this, 'error'));
   this._server.on('listening', this.emit.bind(this, 'listening', this._server));
@@ -147,7 +146,7 @@ Malone.prototype._handleClient = function(client) {
 };
 
 Malone.prototype._listen = function() {  
-  this._server.listen(this._port, this._host, (function handleListening() {
+  this._server.listen(this._port, (function handleListening() {
     this._port = this._server.address().port;
     this._register();
   }).bind(this));
